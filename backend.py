@@ -2,10 +2,12 @@ import json
 from datetime import datetime
 import pandas as pd
 import yfinance as yf
-from typing import List, Optional
+from typing import List
 from fastapi import FastAPI, HTTPException, Query
 from sqlmodel import Field, Session, SQLModel, create_engine, select
-from models import StockDailyPrice
+
+from models import StockDailyPrice, StockTranscript
+from transcript import get_transcript_path, load_transcript, preprocess_transcript
 
 sqlite_file_name = "database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
@@ -38,7 +40,7 @@ def _parse_df(df: pd.DataFrame) -> List[dict]:
 
 @app.get("/search/yfin")
 def search_yfin(
-    query: str = Query("Reliance", description="Search query for stock ticker"),
+    query: str = Query("HDFC", description="Search query for stock ticker"),
     limit: int = Query(25, ge=1, le=250, description="Maximum number of results"),
 ):
     yf_lookup = yf.Lookup(query)
@@ -54,7 +56,7 @@ def search_yfin(
 
 @app.get("/fetch", response_model=list[StockDailyPrice])
 def get_history(
-    ticker: str = Query("RELIANCE.NS", description="Stock ticker"),
+    ticker: str = Query("HDFCBANK.NS", description="Stock ticker"),
     period: str = Query("3y", description="yfinance period (e.g., 3y)"),
     interval: str = Query("1d", description="yfinance interval (e.g., 1d, 1wk)"),
 ):
@@ -94,3 +96,37 @@ def get_history(
         [session.refresh(sdp) for sdp in new_sdp_list]
 
     return sdp_list
+
+
+@app.get("/summary", response_model=list[StockTranscript])
+def get_summary(
+    ticker: str = Query("HDFCBANK.NS", description="Stock ticker"),
+    quarter: str = Query("2025Q1", description="Quarter for which to fetch the call transcript summary")
+):
+    ticker = ticker.strip().upper()
+
+    with Session(engine) as session:
+        stock_transcript_list = session.exec(select(StockTranscript).where(StockTranscript.ticker == ticker, StockTranscript.quarter == quarter)).all()
+        
+        if len(stock_transcript_list) == 0:
+            filepath = get_transcript_path(ticker, quarter)
+            reader = load_transcript(filepath)
+            transcript_df = preprocess_transcript(reader)
+            stock_transcript_list = [
+                StockTranscript(
+                    ticker=ticker,
+                    quarter=quarter,
+                    transcript_index=row["transcript_index"],
+                    speaker=row["speaker"],
+                    speaker_type=row["speaker_type"],
+                    transcript=row["transcript"],
+                )
+                for _, row in transcript_df.iterrows()
+            ]
+
+            session.add_all(stock_transcript_list)
+            session.commit()
+
+            [session.refresh(st) for st in stock_transcript_list]
+
+    return stock_transcript_list
