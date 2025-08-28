@@ -1,3 +1,4 @@
+import os
 import json
 import pandas as pd
 import yfinance as yf
@@ -11,7 +12,7 @@ from models import StockDailyPrice, StockTranscript, StockTranscriptSummary
 
 load_dotenv()
 
-from transcript import get_transcript_path, load_transcript, preprocess_transcript
+from transcript import TICKER_MAPPING, get_transcript_path, load_transcript, preprocess_transcript
 from transcript import extract_summary, extract_revenue_profit_highlights, extract_management_commentary, extract_guidance_outlook, extract_qna_key_points
 
 app = FastAPI()
@@ -106,6 +107,18 @@ def get_history(
         [session.refresh(sdp) for sdp in new_sdp_list]
 
     return sdp_list
+
+
+@app.get("/transcript/all", response_model=list[str])
+def get_transcript_list(
+    ticker: str = Query("HDFCBANK.NS", description="Stock ticker"),
+):
+    if ticker not in TICKER_MAPPING:
+        return []
+    
+    file_ticker = TICKER_MAPPING[ticker]
+    quarters = [fname[:-4].split('_')[1] for fname in os.listdir('./pdfs/') if ('.pdf' in fname.lower()) and (file_ticker.lower() in fname.lower())]
+    return quarters
 
 
 @app.get("/transcript", response_model=list[StockTranscript])

@@ -5,13 +5,13 @@ from PyPDF2 import PdfReader
 
 from google_genai import fetch_response
 
+TICKER_MAPPING = {
+    "HDFCBANK.NS": "hdfc",
+    "TITAN.NS": "titan"
+}
 
 def get_transcript_path(ticker: str, quarter: str) -> str:
-    ticker_mapping = {
-        "HDFCBANK.NS": "hdfc",
-        "TITAN.NS": "titan"
-    }
-    filepath = f"./pdfs/{ticker_mapping[ticker]}_{quarter}.pdf"
+    filepath = f"./pdfs/{TICKER_MAPPING[ticker]}_{quarter}.pdf"
     return filepath
 
 
@@ -80,7 +80,7 @@ def extract_summary(transcript_df: pd.DataFrame) -> str:
     qna_text = "\n".join((qna_df['speaker_type'] + ": " + qna_df['transcript']).values.tolist())
     qna_context = f"This is the QnA text from earnings transcript between management and analysts.\n\n{qna_text}"
 
-    query = "Extract and summarize the whole transcript."
+    query = "Extract and summarize the whole transcript. Write in at max 10 points."
     prompt = f"{management_context}\n\n{qna_context}\n\n{query}"
     summary = fetch_response(prompt=prompt).text
 
@@ -94,7 +94,7 @@ def extract_revenue_profit_highlights(transcript_df: pd.DataFrame) -> dict[str, 
     management_df = management_df[management_df['speaker_type'] == 'Management']
     management_text = '\n'.join(transcript_df['transcript'].values.tolist())
     management_context = f"This is the text from earnings transcript as told by management.\n\n{management_text}"
-    query = "Extract and summarize the revenue/profit highlights if discussed anywhere."
+    query = "Extract and summarize the revenue/profit highlights if discussed anywhere. Write in at max 3 points."
     prompt = f"{management_context}\n\n{query}"
     management_highlight = fetch_response(prompt=prompt).text
 
@@ -102,7 +102,7 @@ def extract_revenue_profit_highlights(transcript_df: pd.DataFrame) -> dict[str, 
     qna_df = transcript_df[transcript_df['transcript_index'] >= first_question_tid]
     qna_text = "\n".join((qna_df['speaker_type'] + ": " + qna_df['transcript']).values.tolist())
     qna_context = f"This is the QnA text from earnings transcript between management and analysts.\n\n{qna_text}"
-    query = "Extract and summarize the revenue/profit highlights from QnA if discussed anywhere."
+    query = "Extract and summarize the revenue/profit highlights from QnA if discussed anywhere. Write in at max 3 points."
     prompt = f"{management_context}\n\n{qna_context}\n\n{query}"
     qna_highlight = fetch_response(prompt=prompt).text
 
@@ -119,7 +119,7 @@ def extract_management_commentary(transcript_df: pd.DataFrame) -> str:
     management_df = management_df[management_df['speaker_type'] == 'Management']
     management_text = '\n'.join(transcript_df['transcript'].values.tolist())
     management_context = f"This is the text from earnings transcript as told by management.\n\n{management_text}"
-    query = "Extract and summarize the management commentary."
+    query = "Extract and summarize the management commentary. Write in at max 5 points."
     prompt = f"{management_context}\n\n{query}"
     management_commentary = fetch_response(prompt=prompt).text
     return management_commentary
@@ -132,7 +132,7 @@ def extract_guidance_outlook(transcript_df: pd.DataFrame) -> dict[str, str]:
     management_df = management_df[management_df['speaker_type'] == 'Management']
     management_text = '\n'.join(transcript_df['transcript'].values.tolist())
     management_context = f"This is the text from earnings transcript as told by management.\n\n{management_text}"
-    query = "Extract and summarize the guidance/outlook if discussed anywhere."
+    query = "Extract and summarize the guidance/outlook if discussed anywhere. Write in at max 3 points."
     prompt = f"{management_context}\n\n{query}"
     management_summary = fetch_response(prompt=prompt).text
 
@@ -140,7 +140,7 @@ def extract_guidance_outlook(transcript_df: pd.DataFrame) -> dict[str, str]:
     qna_df = transcript_df[transcript_df['transcript_index'] >= first_question_tid]
     qna_text = "\n".join((qna_df['speaker_type'] + ": " + qna_df['transcript']).values.tolist())
     qna_context = f"This is the QnA text from earnings transcript between management and analysts.\n\n{qna_text}"
-    query = "Extract and summarize the guidance/outlook from QnA if discussed anywhere."
+    query = "Extract and summarize the guidance/outlook from QnA if discussed anywhere. Write in at max 3 points."
     prompt = f"{management_context}\n\n{qna_context}\n\n{query}"
     qna_summary = fetch_response(prompt=prompt).text
 
@@ -156,7 +156,7 @@ def extract_qna_key_points(transcript_df: pd.DataFrame) -> str:
     qna_df = transcript_df[transcript_df['transcript_index'] >= first_question_tid]
     qna_text = "\n".join((qna_df['speaker_type'] + ": " + qna_df['transcript']).values.tolist())
     qna_context = f"This is the QnA text from earnings transcript between management and analysts.\n\n{qna_text}"
-    query = "Extract and summarize the key points from QnA."
+    query = "Extract and summarize the key points from QnA. Write in at max 10 points."
     prompt = f"{qna_context}\n\n{query}"
     qna_summary = fetch_response(prompt=prompt).text
     return qna_summary
