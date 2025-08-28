@@ -29,3 +29,19 @@ class StockTranscript(SQLModel, table=True):
     __table_args__ = (
         PrimaryKeyConstraint("ticker", "quarter", "transcript_index"),
     )
+
+
+class StockTranscriptSummary(SQLModel, table=True):
+    ticker: str
+    quarter: str
+    summary: str
+    revenue_profit_highlight_management: str
+    revenue_profit_highlight_qna: str
+    management_commentary: str
+    guidance_outlook_summary_management: str
+    guidance_outlook_summary_qna: str
+    qna_key_points: str
+
+    __table_args__ = (
+        PrimaryKeyConstraint("ticker", "quarter"),
+    )

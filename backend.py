@@ -6,8 +6,9 @@ from typing import List
 from fastapi import FastAPI, HTTPException, Query
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
-from models import StockDailyPrice, StockTranscript
+from models import StockDailyPrice, StockTranscript, StockTranscriptSummary
 from transcript import get_transcript_path, load_transcript, preprocess_transcript
+from transcript import extract_summary, extract_revenue_profit_highlights, extract_management_commentary, extract_guidance_outlook, extract_qna_key_points
 
 sqlite_file_name = "database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
@@ -98,8 +99,8 @@ def get_history(
     return sdp_list
 
 
-@app.get("/summary", response_model=list[StockTranscript])
-def get_summary(
+@app.get("/transcript", response_model=list[StockTranscript])
+def get_transcript(
     ticker: str = Query("HDFCBANK.NS", description="Stock ticker"),
     quarter: str = Query("2025Q1", description="Quarter for which to fetch the call transcript summary")
 ):
@@ -130,3 +131,44 @@ def get_summary(
             [session.refresh(st) for st in stock_transcript_list]
 
     return stock_transcript_list
+
+
+@app.get("/summary", response_model=StockTranscriptSummary)
+def get_summary(
+    ticker: str = Query("HDFCBANK.NS", description="Stock ticker"),
+    quarter: str = Query("2025Q1", description="Quarter for which to fetch the call transcript summary")
+):
+    ticker = ticker.strip().upper()
+
+    with Session(engine) as session:
+        stock_transcript_summary = session.exec(select(StockTranscriptSummary).where(StockTranscriptSummary.ticker == ticker, StockTranscriptSummary.quarter == quarter)).first()
+        
+        if not stock_transcript_summary:
+            stock_transcript_list = get_transcript(ticker, quarter)
+            transcript_df = pd.DataFrame([st.model_dump() for st in stock_transcript_list])
+            print(transcript_df)
+
+            summary = extract_summary(transcript_df)
+            revenue_profit_highlight_dict = extract_revenue_profit_highlights(transcript_df)
+            management_commentary = extract_management_commentary(transcript_df)
+            guidance_outlook_summary_dict = extract_guidance_outlook(transcript_df)
+            qna_key_points = extract_qna_key_points(transcript_df)
+
+            stock_transcript_summary = StockTranscriptSummary(
+                ticker=ticker,
+                quarter=quarter,
+                summary=summary,
+                revenue_profit_highlight_management=revenue_profit_highlight_dict['management'],
+                revenue_profit_highlight_qna=revenue_profit_highlight_dict['qna'],
+                management_commentary=management_commentary,
+                guidance_outlook_summary_management=guidance_outlook_summary_dict['management'],
+                guidance_outlook_summary_qna=guidance_outlook_summary_dict['qna'],
+                qna_key_points=qna_key_points
+            )
+
+            session.add(stock_transcript_summary)
+            session.commit()
+            
+            session.refresh(stock_transcript_summary)
+
+    return stock_transcript_summary
