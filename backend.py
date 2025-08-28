@@ -49,6 +49,21 @@ def search_yfin(
     }
 
 
+def get_nifty_500_stocks():
+    df = pd.read_csv("MW-NIFTY-500-27-Aug-2025.csv")
+    stock_list = df.iloc[1:]['SYMBOL \n'].values.tolist()
+    return stock_list
+
+
+@app.get("/search", response_model=list[str])
+def search(
+    query: str = Query("HDFC", description="Search query for stock ticker in NIFTY 500 NSE"),
+):
+    stock_list = get_nifty_500_stocks()
+    filtered_stock_list = [f"{s}.NS" for s in stock_list if query.lower() in s.lower()]
+    return filtered_stock_list
+
+
 @app.get("/fetch", response_model=list[StockDailyPrice])
 def get_history(
     ticker: str = Query("HDFCBANK.NS", description="Stock ticker"),
