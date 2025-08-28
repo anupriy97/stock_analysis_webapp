@@ -3,12 +3,15 @@ from datetime import datetime
 import pandas as pd
 import yfinance as yf
 from typing import List
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from models import StockDailyPrice, StockTranscript, StockTranscriptSummary
 from transcript import get_transcript_path, load_transcript, preprocess_transcript
 from transcript import extract_summary, extract_revenue_profit_highlights, extract_management_commentary, extract_guidance_outlook, extract_qna_key_points
+
+load_dotenv()
 
 sqlite_file_name = "database.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
